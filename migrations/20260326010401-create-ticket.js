@@ -9,6 +9,11 @@ module.exports = {
         primaryKey: true,
         type: Sequelize.INTEGER,
       },
+      code: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        unique: true,
+      },
       date: {
         type: Sequelize.DATE,
         allowNull: false,
@@ -22,6 +27,16 @@ module.exports = {
         allowNull: false,
         references: {
           model: "Suppliers",
+          key: "id",
+        },
+        onUpdate: "CASCADE",
+        onDelete: "CASCADE",
+      },
+      landId: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: {
+          model: "Lands",
           key: "id",
         },
         onUpdate: "CASCADE",
