@@ -16,6 +16,7 @@ module.exports = (sequelize, DataTypes) => {
   }
   Supplier.init(
     {
+      code: DataTypes.STRING,
       name: DataTypes.STRING,
     },
     {

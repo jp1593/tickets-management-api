@@ -13,6 +13,11 @@ module.exports = (sequelize, DataTypes) => {
         as: "supplier",
       });
 
+      this.belongsTo(models.Land, {
+        foreignKey: "landId",
+        as: "land",
+      });
+
       this.hasMany(models.TicketItem, {
         foreignKey: "ticketId",
         as: "items",
@@ -21,9 +26,11 @@ module.exports = (sequelize, DataTypes) => {
   }
   Ticket.init(
     {
+      code: DataTypes.STRING,
       date: DataTypes.DATE,
       total: DataTypes.FLOAT,
       supplierId: DataTypes.INTEGER,
+      landId: DataTypes.INTEGER,
     },
     {
       sequelize,
