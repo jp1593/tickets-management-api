@@ -1,6 +1,9 @@
 const express = require('express');
+const cors = require('cors');
 const app = express();
 const apiRoutes = require('./routes/api'); 
+
+app.use(cors());
 
 app.use(express.json()); // Middleware for Json parse
 
