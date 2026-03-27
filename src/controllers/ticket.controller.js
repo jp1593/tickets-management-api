@@ -170,3 +170,41 @@ exports.createTicket = async (req, res) => {
     });
   }
 };
+
+// Delete ticket
+exports.deleteTicket = async (req, res) => {
+  const { id } = req.params;
+
+  const t = await sequelize.transaction();
+
+  try {
+    const ticket = await Ticket.findByPk(id, { transaction: t });
+
+    if (!ticket) {
+      await t.rollback();
+      return res.status(404).json({
+        message: "Ticket no encontrado",
+      });
+    }
+
+    // Ticket Elimination (TicketItems deleted by Cascade)
+    await ticket.destroy({ transaction: t });
+
+    await t.commit();
+
+    console.log("🟢 Ticket eliminado:", id);
+
+    res.json({
+      message: "Ticket eliminado correctamente",
+    });
+  } catch (error) {
+    await t.rollback();
+
+    console.error("🔥 ERROR DELETE TICKET:", error);
+
+    res.status(500).json({
+      message: "Error eliminando ticket",
+      error: error.message,
+    });
+  }
+};
