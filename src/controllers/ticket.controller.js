@@ -1,4 +1,12 @@
-const { Ticket, Supplier, Land, TicketItem, Product, Sequelize } = require("../../models");
+const {
+  Ticket,
+  Supplier,
+  Land,
+  TicketItem,
+  Product,
+  Sequelize,
+  sequelize,
+} = require("../../models");
 
 // Get tickets - Pagination
 exports.getTickets = async (req, res) => {
@@ -82,7 +90,7 @@ exports.getTicketById = async (req, res) => {
 exports.createTicket = async (req, res) => {
   const { code, date, supplierCode, landCode, items } = req.body;
 
-  const t = await Sequelize.transaction();
+  const t = await sequelize.transaction();
 
   try {
     // Supplier search
@@ -112,9 +120,9 @@ exports.createTicket = async (req, res) => {
         date,
         supplierId: supplier.id,
         landId: land.id,
-        total: 0, 
+        total: 0,
       },
-      { transaction: t }
+      { transaction: t },
     );
 
     let total = 0;
@@ -139,7 +147,7 @@ exports.createTicket = async (req, res) => {
           price: item.price,
           subtotal,
         },
-        { transaction: t }
+        { transaction: t },
       );
 
       total += subtotal;
@@ -153,6 +161,7 @@ exports.createTicket = async (req, res) => {
 
     res.status(201).json(ticket);
   } catch (error) {
+    console.error("🔥 ERROR CREATE TICKET:", error);
     await t.rollback();
 
     res.status(500).json({
