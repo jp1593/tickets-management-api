@@ -1,5 +1,6 @@
 const { Ticket, Supplier, Land, TicketItem, Product, Sequelize } = require("../../models");
 
+// Get tickets - Pagination
 exports.getTickets = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
@@ -41,6 +42,7 @@ exports.getTickets = async (req, res) => {
   }
 };
 
+// Search ticket by ID
 exports.getTicketById = async (req, res) => {
   try {
     const ticket = await Ticket.findByPk(req.params.id, {
@@ -73,5 +75,89 @@ exports.getTicketById = async (req, res) => {
     res
       .status(500)
       .json({ message: "Error al obtener el detalle", error: error.message });
+  }
+};
+
+// Create ticket
+exports.createTicket = async (req, res) => {
+  const { code, date, supplierCode, landCode, items } = req.body;
+
+  const t = await Sequelize.transaction();
+
+  try {
+    // Supplier search
+    const supplier = await Supplier.findOne({
+      where: { code: supplierCode },
+      transaction: t,
+    });
+
+    if (!supplier) {
+      throw new Error("Supplier no encontrado");
+    }
+
+    // Land search
+    const land = await Land.findOne({
+      where: { code: landCode },
+      transaction: t,
+    });
+
+    if (!land) {
+      throw new Error("Land no encontrado");
+    }
+
+    // Ticket creation
+    const ticket = await Ticket.create(
+      {
+        code,
+        date,
+        supplierId: supplier.id,
+        landId: land.id,
+        total: 0, 
+      },
+      { transaction: t }
+    );
+
+    let total = 0;
+
+    for (const item of items) {
+      const product = await Product.findOne({
+        where: { code: item.productCode },
+        transaction: t,
+      });
+
+      if (!product) {
+        throw new Error(`Producto ${item.productCode} no encontrado`);
+      }
+
+      const subtotal = item.quantity * item.price;
+
+      await TicketItem.create(
+        {
+          ticketId: ticket.id,
+          productId: product.id,
+          quantity: item.quantity,
+          price: item.price,
+          subtotal,
+        },
+        { transaction: t }
+      );
+
+      total += subtotal;
+    }
+
+    // Total update
+    ticket.total = total;
+    await ticket.save({ transaction: t });
+
+    await t.commit();
+
+    res.status(201).json(ticket);
+  } catch (error) {
+    await t.rollback();
+
+    res.status(500).json({
+      message: "Error creando ticket",
+      error: error.message,
+    });
   }
 };
