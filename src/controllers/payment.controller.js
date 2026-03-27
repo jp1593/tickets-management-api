@@ -4,6 +4,7 @@ const {
   TicketItem,
   sequelize,
   Land,
+  Product
 } = require("../../models");
 const { Op } = require("sequelize");
 
@@ -42,7 +43,7 @@ exports.getWeeklyPaymentSummary = async (req, res) => {
       attributes: [
         [sequelize.col("ticket.supplierId"), "supplierId"],
         [sequelize.fn("SUM", sequelize.col("subtotal")), "totalAmount"],
-        [sequelize.fn("COUNT", sequelize.col("TicketItem.id")), "productCount"], 
+        [sequelize.fn("COUNT", sequelize.col("TicketItem.id")), "productCount"],
         [
           sequelize.fn(
             "COUNT",
@@ -50,21 +51,22 @@ exports.getWeeklyPaymentSummary = async (req, res) => {
           ),
           "ticketCount",
         ],
+        [
+          sequelize.fn(
+            "ARRAY_AGG",
+            sequelize.fn("DISTINCT", sequelize.col("ticketId")),
+          ),
+          "ticketIds",
+        ],
       ],
-      where: {
-        ticketId: { [Op.in]: ticketIds },
-      },
+      where: { ticketId: { [Op.in]: ticketIds } },
       include: [
         {
           model: Ticket,
           as: "ticket",
           attributes: [],
           include: [
-            {
-              model: Supplier,
-              as: "supplier",
-              attributes: ["code", "name"],
-            },
+            { model: Supplier, as: "supplier", attributes: ["code", "name"] },
           ],
         },
       ],
@@ -78,13 +80,34 @@ exports.getWeeklyPaymentSummary = async (req, res) => {
       nest: true,
     });
 
-    const formattedSummary = summary.map((item) => ({
-      supplierId: item.supplierId,
-      totalAmount: parseFloat(item.totalAmount),
-      productCount: parseInt(item.productCount),
-      ticketCount: parseInt(item.ticketCount),
-      supplier: item.ticket.supplier,
-    }));
+
+    const formattedSummary = await Promise.all(
+      summary.map(async (item) => {
+        const details = await Ticket.findAll({
+          where: { id: { [Op.in]: item.ticketIds } },
+          attributes: ["id", "code", "date", "total"],
+          include: [
+            { model: Land, as: "land", attributes: ["name"] },
+            {
+              model: TicketItem,
+              as: "items",
+              include: [
+                { model: Product, as: "product", attributes: ["name"] },
+              ], 
+            },
+          ],
+        });
+
+        return {
+          supplierId: item.supplierId,
+          totalAmount: parseFloat(item.totalAmount),
+          productCount: parseInt(item.productCount),
+          ticketCount: parseInt(item.ticketCount),
+          supplier: item.ticket.supplier,
+          tickets: details,
+        };
+      }),
+    );
 
     res.json({ year, week, payments: formattedSummary });
   } catch (error) {
@@ -144,7 +167,7 @@ exports.getDashboardStats = async (req, res) => {
       ],
       group: ["ticket->supplier.id", "ticket->supplier.name"],
       order: [[sequelize.fn("SUM", sequelize.col("subtotal")), "DESC"]],
-      limit: 5, 
+      limit: 5,
       raw: true,
     });
 
@@ -158,7 +181,7 @@ exports.getDashboardStats = async (req, res) => {
         {
           model: Ticket,
           as: "ticket",
-          attributes: [], 
+          attributes: [],
           where: sequelize.and(
             sequelize.where(
               sequelize.fn(
@@ -194,7 +217,7 @@ exports.getDashboardStats = async (req, res) => {
           {
             model: Ticket,
             as: "ticket",
-            attributes: [], // Aseguramos que no pida columnas extras
+            attributes: [], 
             where: sequelize.and(
               sequelize.where(
                 sequelize.fn(
@@ -251,7 +274,7 @@ exports.getDashboardStats = async (req, res) => {
 
     res.json({
       byLand,
-      bySupplier, 
+      bySupplier,
       performance: {
         currentTotal: parseFloat(currentTotal),
         lastWeekTotal: parseFloat(lastWeekTotal),
